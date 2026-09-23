@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Collaboration Rebate Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: #f4f6f9; color: #1e2a3a; display: flex; justify-content: center;
+         padding: 40px 16px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08);
+          max-width: 560px; width: 100%; padding: 36px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #6b7a8d; margin-bottom: 28px; }
+  .subtitle a { color: #29b5e8; text-decoration: none; }
+  .row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .field { flex: 1; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #3a4a5c; }
+  input { width: 100%; padding: 10px 12px; border: 1px solid #d0d7de; border-radius: 8px;
+          font-size: 15px; outline: none; transition: border .2s; }
+  input:focus { border-color: #29b5e8; }
+  .divider { height: 1px; background: #e8ecf0; margin: 24px 0; }
+  .results { display: flex; gap: 16px; text-align: center; }
+  .metric { flex: 1; padding: 16px 8px; background: #f7f9fb; border-radius: 10px; }
+  .metric .value { font-size: 26px; font-weight: 700; color: #11567f; }
+  .metric .label { font-size: 12px; color: #6b7a8d; margin-top: 4px; }
+  .warning { margin-top: 16px; padding: 12px; background: #fff8e6; border-left: 4px solid #f0b429;
+             border-radius: 6px; font-size: 13px; display: none; }
+  details { margin-top: 24px; }
+  summary { cursor: pointer; font-size: 13px; font-weight: 600; color: #3a4a5c; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e8ecf0; }
+  th { background: #f7f9fb; font-weight: 600; }
+  .note { font-size: 11px; color: #6b7a8d; margin-top: 8px; }
+  .active-row { background: #e6f7ff; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Snowflake Collaboration Rebate Calculator</h1>
+  <p class="subtitle">Estimate your monthly rebate under the
+    <a href="https://www.snowflake.com/en/legal/data-sharing-rebate-program/" target="_blank">
+    Collaboration Rebate Program</a>.</p>
+
+  <div class="row">
+    <div class="field">
+      <label for="edges">Stable Edges</label>
+      <input type="number" id="edges" value="50" min="0" step="1">
+    </div>
+    <div class="field">
+      <label for="credits">Consumer Attributed Credits</label>
+      <input type="number" id="credits" value="9000" min="0" step="100">
+    </div>
+  </div>
+  <div class="field" style="margin-bottom:0">
+    <label for="spend">Your Org's Monthly Spend (credits)</label>
+    <input type="number" id="spend" value="4492" min="0" step="100">
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="results">
+    <div class="metric"><div class="value" id="rTier">—</div><div class="label">Your Tier</div></div>
+    <div class="metric"><div class="value" id="rRate">—</div><div class="label">Rebate Rate</div></div>
+    <div class="metric"><div class="value" id="rRebate">—</div><div class="label">Est. Rebate</div></div>
+  </div>
+  <div class="results" style="margin-top:12px">
+    <div class="metric" style="background:#eaf7ee">
+      <div class="value" id="rNet" style="color:#1a7f37">—</div>
+      <div class="label">Net Credit Cost After Rebate</div>
+    </div>
+  </div>
+
+  <div class="warning" id="warning"></div>
+
+  <details>
+    <summary>Tier breakdown</summary>
+    <table>
+      <thead><tr><th>Tier</th><th>Stable Edges</th><th>Rebate %</th></tr></thead>
+      <tbody>
+        <tr id="row1"><td>1</td><td>50 +</td><td>50%</td></tr>
+        <tr id="row2"><td>2</td><td>25 – 49</td><td>25%</td></tr>
+        <tr id="row3"><td>3</td><td>10 – 24</td><td>15%</td></tr>
+        <tr id="row4"><td>4</td><td>0 – 9</td><td>10%</td></tr>
+      </tbody>
+    </table>
+    <p class="note"><strong>Stable Edge:</strong> an Edge that produced at least 20 jobs
+      consuming compute resources over two successive three-week periods (20 jobs each).</p>
+  </details>
+</div>
+
+<script>
+const TIERS = [
+  {tier:1, min:50, pct:0.50},
+  {tier:2, min:25, pct:0.25},
+  {tier:3, min:10, pct:0.15},
+  {tier:4, min:0,  pct:0.10},
+];
+
+function calc() {
+  const edges   = parseInt(document.getElementById('edges').value)   || 0;
+  const credits = parseFloat(document.getElementById('credits').value) || 0;
+  const spend   = parseFloat(document.getElementById('spend').value)   || 0;
+
+  let t = TIERS[3];
+  for (const tier of TIERS) { if (edges >= tier.min) { t = tier; break; } }
+
+  const raw = credits * t.pct;
+  const capped = Math.min(raw, spend);
+
+  document.getElementById('rTier').textContent   = 'Tier ' + t.tier;
+  document.getElementById('rRate').textContent   = Math.round(t.pct * 100) + '%';
+  document.getElementById('rRebate').textContent = capped.toLocaleString('en-US', {maximumFractionDigits:0}) + ' cr';
+
+  const net = Math.max(spend - capped, 0);
+  document.getElementById('rNet').textContent = net.toLocaleString('en-US', {maximumFractionDigits:0}) + ' cr';
+
+  const warn = document.getElementById('warning');
+  if (raw > spend) {
+    warn.style.display = 'block';
+    warn.textContent = 'Uncapped rebate would be ' +
+      raw.toLocaleString('en-US', {maximumFractionDigits:0}) +
+      ' credits, but it is capped at your org spend of ' +
+      spend.toLocaleString('en-US', {maximumFractionDigits:0}) + ' credits.';
+  } else {
+    warn.style.display = 'none';
+  }
+
+  for (let i = 1; i <= 4; i++)
+    document.getElementById('row' + i).classList.toggle('active-row', i === t.tier);
+}
+
+document.querySelectorAll('input').forEach(el => el.addEventListener('input', calc));
+calc();
+</script>
+</body>
+</html>
